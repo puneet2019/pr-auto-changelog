@@ -5,7 +5,7 @@ on:
     branches: [ puneet/pr-auto-ch ]
 
 jobs:
-  build:
+  test-ci:
     runs-on: ubuntu-latest
 
     strategy:
