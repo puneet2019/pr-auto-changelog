@@ -106,16 +106,23 @@ async function run() {
     }
 
     // Update changelog
-    const updated = await updateChangelog(changelogPath, changelogEntries);
-    
-    if (updated) {
-      // Commit changes
-      await commitChanges(changelogPath, changelogEntries.length);
+    if (changelogEntries.length > 0) {
+      core.info(`Processing ${changelogEntries.length} changelog entries`);
+      const updated = await updateChangelog(changelogPath, changelogEntries);
       
-      core.setOutput('changelog-updated', 'true');
-      core.setOutput('changes-added', changelogEntries.length.toString());
-      core.info(`Successfully added ${changelogEntries.length} entries to changelog`);
+      if (updated) {
+        core.info('Changelog updated successfully');
+        
+        // Commit changes
+        await commitChanges(changelogPath, changelogEntries.length);
+        
+        core.setOutput('changelog-updated', 'true');
+        core.setOutput('changes-added', changelogEntries.length.toString());
+      } else {
+        core.setFailed('Failed to update changelog');
+      }
     } else {
+      core.info('No changelog entries to process');
       core.setOutput('changelog-updated', 'false');
       core.setOutput('changes-added', '0');
     }
@@ -371,9 +378,28 @@ async function commitChanges(changelogPath, entriesCount) {
       await exec.exec('git', ['checkout', '-b', branchName]);
     }
     
+    // Check if there are any changes to commit
+    const { stdout: status } = await exec.exec('git', ['status', '--porcelain'], [], { silent: true });
+    
+    if (!status.trim()) {
+      core.info('No changes to commit - changelog is already up to date');
+      return;
+    }
+    
     // Add and commit changes
     await exec.exec('git', ['add', changelogPath]);
-    await exec.exec('git', ['commit', '-m', `chore: update changelog with ${entriesCount} new entries`]);
+    
+    // Try to commit, but don't fail if there's nothing to commit
+    try {
+      await exec.exec('git', ['commit', '-m', `chore: update changelog with ${entriesCount} new entries`]);
+      core.info('Successfully committed changelog changes');
+    } catch (error) {
+      if (error.message.includes('nothing to commit') || error.message.includes('no changes added to commit')) {
+        core.info('No changes to commit - changelog is already up to date');
+        return;
+      }
+      throw error;
+    }
     
     // Push changes
     await exec.exec('git', ['push', 'origin', branchName]);
