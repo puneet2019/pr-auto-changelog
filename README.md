@@ -1,116 +1,224 @@
-# Create a JavaScript Action
+# PR Auto Changelog
 
 <p align="center">
-  <a href="https://github.com/actions/javascript-action/actions"><img alt="javscript-action status" src="https://github.com/actions/javascript-action/workflows/units-test/badge.svg"></a>
+  <a href="https://github.com/puneet2019/pr-auto-changelog/actions"><img alt="pr-auto-changelog status" src="https://github.com/puneet2019/pr-auto-changelog/workflows/test/badge.svg"></a>
 </p>
 
-Use this template to bootstrap the creation of a JavaScript action.:rocket:
+Automatically update your project's changelog based on pull request comments and conventional commit formats. This GitHub Action helps maintain a well-organized, up-to-date changelog without manual intervention.
 
-This template includes tests, linting, a validation workflow, publishing, and versioning guidance.
+## Features
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
-
-## Create an action from this template
-
-Click the `Use this Template` and provide the new repo details for your action
-
-## Code in Main
-
-Install the dependencies
-
-```bash
-npm install
-```
-
-Run the tests :heavy_check_mark:
-
-```bash
-$ npm test
-
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
-...
-```
-
-## Change action.yml
-
-The action.yml defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-const core = require('@actions/core');
-...
-
-async function run() {
-  try {
-      ...
-  }
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Package for distribution
-
-GitHub Actions will run the entry point from the action.yml. Packaging assembles the code into one file that can be checked in to Git, enabling fast and reliable execution and preventing the need to check in node_modules.
-
-Actions are run from GitHub repos.  Packaging the action will create a packaged action in the dist folder.
-
-Run prepare
-
-```bash
-npm run prepare
-```
-
-Since the packaged index.js is run from the dist folder.
-
-```bash
-git add dist
-```
-
-## Create a release branch
-
-Users shouldn't consume the action from master since that would be latest code and actions can break compatibility between major versions.
-
-Checkin to the v1 release branch
-
-```bash
-git checkout -b v1
-git commit -a -m "v1 release"
-```
-
-```bash
-git push origin v1
-```
-
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
-
-Your action is now published! :rocket:
-
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
+- 🔧 **Comment-based changelog entries**: Use `/changelog:` comments in PRs to add entries
+- 🏷️ **Conventional commit support**: Auto-categorize based on commit types (feat, fix, etc.)
+- 📝 **Keep a Changelog format**: Follows the standard changelog format
+- 🔗 **PR linking**: Automatically includes PR numbers and links
+- 📂 **Section categorization**: Groups changes into Features, Bug Fixes, etc.
+- ⚡ **Auto-commit**: Commits changelog updates directly to the PR branch
 
 ## Usage
 
-You can now consume the action by referencing the v1 branch
+### Basic Setup
+
+Create a workflow file (e.g., `.github/workflows/changelog.yml`):
 
 ```yaml
-uses: actions/javascript-action@v1
-with:
-  milliseconds: 1000
+name: Auto Changelog
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Update Changelog
+        uses: puneet2019/pr-auto-changelog@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changelog-path: 'CHANGELOG.md'
+          auto-categorize: true
+          comment-trigger: '/changelog:'
 ```
 
-See the [actions tab](https://github.com/actions/javascript-action/actions) for runs of this action! :rocket:
+### Input Parameters
+
+| Parameter | Description | Required | Default |
+|-----------|-------------|----------|---------|
+| `github-token` | GitHub token for API access | Yes | `${{ github.token }}` |
+| `changelog-path` | Path to the changelog file | No | `CHANGELOG.md` |
+| `auto-categorize` | Auto-categorize based on conventional commits | No | `true` |
+| `comment-trigger` | Comment trigger phrase | No | `/changelog:` |
+
+### Output Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `changelog-updated` | Whether the changelog was updated (`true`/`false`) |
+| `changes-added` | Number of changes added to changelog |
+
+## How It Works
+
+### Method 1: Comment-Based Entries
+
+Add a comment to your PR with the `/changelog:` trigger:
+
+```
+/changelog: Added user authentication feature with JWT tokens
+```
+
+This will add an entry like:
+```markdown
+- Added user authentication feature with JWT tokens ([#123](https://github.com/owner/repo/pull/123))
+```
+
+### Method 2: Conventional Commit Auto-Categorization
+
+Use conventional commit format in your PR title:
+
+- `feat: add user authentication` → **Features** section
+- `fix: resolve login bug` → **Bug Fixes** section  
+- `docs: update README` → **Documentation** section
+- `refactor: improve code structure` → **Refactoring** section
+
+### Supported Conventional Commit Types
+
+| Type | Changelog Section |
+|------|------------------|
+| `feat`, `feature` | Features |
+| `fix` | Bug Fixes |
+| `docs` | Documentation |
+| `style` | Style |
+| `refactor` | Refactoring |
+| `perf` | Performance |
+| `test` | Tests |
+| `chore` | Chores |
+| `ci` | CI/CD |
+| `build` | Build |
+| `revert` | Reverts |
+
+### Changelog Format
+
+The action creates/maintains a changelog in [Keep a Changelog](https://keepachangelog.com/) format:
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+### Features
+- Added user authentication feature with JWT tokens ([#123](https://github.com/owner/repo/pull/123))
+
+### Bug Fixes  
+- **auth**: Fixed login validation issue ([#124](https://github.com/owner/repo/pull/124))
+
+### Documentation
+- Updated API documentation ([#125](https://github.com/owner/repo/pull/125))
+
+## [1.0.0] - 2023-12-01
+...
+```
+
+## Examples
+
+### Example 1: Manual Entry via Comment
+```
+PR Title: "Update login component"
+Comment: "/changelog: Improved login form validation and error handling"
+```
+Result in changelog:
+```markdown
+### Changes
+- Improved login form validation and error handling ([#123](https://github.com/owner/repo/pull/123))
+```
+
+### Example 2: Auto-categorization via Conventional Commit
+```
+PR Title: "feat(auth): add two-factor authentication support"
+```
+Result in changelog:
+```markdown
+### Features  
+- **auth**: add two-factor authentication support ([#124](https://github.com/owner/repo/pull/124))
+```
+
+### Example 3: Bug Fix
+```
+PR Title: "fix: resolve memory leak in data processing"
+```
+Result in changelog:
+```markdown
+### Bug Fixes
+- resolve memory leak in data processing ([#125](https://github.com/owner/repo/pull/125))
+```
+
+## Permissions
+
+The action requires the following permissions:
+- `contents: write` - To commit changelog updates
+- `pull-requests: read` - To read PR information
+- `issues: read` - To read PR comments
+
+Example with explicit permissions:
+```yaml
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      # ... your steps
+```
+
+## Advanced Configuration
+
+### Custom Changelog Path
+```yaml
+- uses: puneet2019/pr-auto-changelog@v1
+  with:
+    changelog-path: 'docs/HISTORY.md'
+```
+
+### Disable Auto-categorization
+```yaml
+- uses: puneet2019/pr-auto-changelog@v1
+  with:
+    auto-categorize: false
+```
+
+### Custom Comment Trigger
+```yaml
+- uses: puneet2019/pr-auto-changelog@v1
+  with:
+    comment-trigger: '/update-changelog:'
+```
+
+## Contributing
+
+1. Fork this repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes using conventional commits
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+If you encounter any issues or have questions:
+1. Check the [Issues](https://github.com/puneet2019/pr-auto-changelog/issues) page
+2. Create a new issue with detailed information
+3. Include your workflow file and any error messages

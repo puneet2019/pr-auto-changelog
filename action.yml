@@ -1,13 +1,27 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: 'PR Auto Changelog'
+description: 'Automatically update changelog based on PR comments and conventional commits'
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  github-token:
+    description: 'GitHub token for API access'
     required: true
-    default: '1000'
+    default: ${{ github.token }}
+  changelog-path:
+    description: 'Path to the changelog file'
+    required: false
+    default: 'CHANGELOG.md'
+  auto-categorize:
+    description: 'Auto-categorize based on conventional commit format'
+    required: false
+    default: 'true'
+  comment-trigger:
+    description: 'Comment trigger phrase'
+    required: false
+    default: '/changelog:'
 outputs:
-  time: # output will be available to future steps
-    description: 'The current time after waiting'
+  changelog-updated:
+    description: 'Whether the changelog was updated'
+  changes-added:
+    description: 'Number of changes added to changelog'
 runs:
   using: 'node16'
   main: 'dist/index.js'
