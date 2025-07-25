@@ -1,8 +1,11 @@
 {
-  "name": "javascript-action",
+  "name": "pr-auto-changelog",
   "version": "1.0.0",
-  "description": "JavaScript Action Template",
+  "description": "Automatically update changelog based on PR comments and conventional commits",
   "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "lint": "eslint .",
     "prepare": "ncc build index.js -o dist --source-map --license licenses.txt",
@@ -11,21 +14,25 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/javascript-action.git"
+    "url": "git+https://github.com/puneet2019/pr-auto-changelog.git"
   },
   "keywords": [
     "GitHub",
     "Actions",
-    "JavaScript"
+    "JavaScript",
+    "changelog",
+    "automation"
   ],
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/actions/javascript-action/issues"
+    "url": "https://github.com/puneet2019/pr-auto-changelog/issues"
   },
-  "homepage": "https://github.com/actions/javascript-action#readme",
+  "homepage": "https://github.com/puneet2019/pr-auto-changelog#readme",
   "dependencies": {
-    "@actions/core": "^1.10.0"
+    "@actions/core": "^1.10.0",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.1"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.0",
