@@ -1,4 +1,4 @@
-name: "PR Auto Changelog Test"
+name: "PR Auto Changelog Integration Test"
 
 on:
   pull_request:
@@ -23,7 +23,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           
-      - name: Test PR Auto Changelog
+      - name: Run PR Auto Changelog
         id: changelog
         uses: ./
         with:
@@ -34,23 +34,32 @@ jobs:
         
       - name: Display Results
         run: |
-          echo "🔍 Test Results:"
-          echo "- Changelog Updated: ${{ steps.changelog.outputs.changelog-updated }}"
-          echo "- Changes Added: ${{ steps.changelog.outputs.changes-added }}"
-          echo "- Event Type: ${{ github.event_name }}"
+          echo "## 🔍 Test Results"
+          echo "- **Changelog Updated:** ${{ steps.changelog.outputs.changelog-updated }}"
+          echo "- **Changes Added:** ${{ steps.changelog.outputs.changes-added }}"
+          echo "- **Event Type:** ${{ github.event_name }}"
           
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "- PR Title: ${{ github.event.pull_request.title }}"
-            echo "- PR Number: ${{ github.event.pull_request.number }}"
+            echo "- **PR Title:** ${{ github.event.pull_request.title }}"
+            echo "- **PR Number:** #${{ github.event.pull_request.number }}"
           elif [ "${{ github.event_name }}" = "issue_comment" ]; then
-            echo "- Comment: ${{ github.event.comment.body }}"
-            echo "- PR Number: ${{ github.event.issue.number }}"
+            echo "- **Comment:** ${{ github.event.comment.body }}"
+            echo "- **PR Number:** #${{ github.event.issue.number }}"
           fi
           
-      - name: Show Changelog (if updated)
+      - name: Show Updated Changelog
         if: steps.changelog.outputs.changelog-updated == 'true'
         run: |
-          echo "📝 Updated Changelog:"
-          echo "===================="
-          cat CHANGELOG.md
-          echo "====================" 
+          echo "## 📝 Updated Changelog (Last 20 lines):"
+          echo '```markdown'
+          tail -20 CHANGELOG.md
+          echo '```'
+          
+      - name: Verify Git Changes
+        if: steps.changelog.outputs.changelog-updated == 'true'
+        run: |
+          echo "## 📋 Git Status After Update:"
+          git status --porcelain
+          echo ""
+          echo "## 📊 Git Log (Last Commit):"
+          git log -1 --oneline 

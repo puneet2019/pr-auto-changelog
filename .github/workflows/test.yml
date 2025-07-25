@@ -7,42 +7,19 @@ on:
       - 'releases/*'
 
 jobs:
-  # unit tests
+  # unit tests only
   units:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - run: npm ci
-    - run: npm test
-
-  # test action works running from the graph  
-  test:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: read
-      issues: read
-    steps:
-    - uses: actions/checkout@v3
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Test PR Auto Changelog Action
-      uses: ./
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        changelog-path: 'test-changelog.md'
-        auto-categorize: true
-        comment-trigger: '/changelog:'
-      env:
-        # Mock PR event for testing
-        GITHUB_EVENT_NAME: 'pull_request'
-        GITHUB_REPOSITORY: ${{ github.repository }}
-    - name: Verify test completed
-      run: |
-        echo "✅ PR Auto Changelog action test completed successfully"
-        if [ -f "test-changelog.md" ]; then
-          echo "📝 Test changelog file was created"
-          cat test-changelog.md
-        else
-          echo "ℹ️  No changelog file created (expected for non-PR events)"
-        fi
+        node-version: '16.x'
+        cache: 'npm'
+    - name: Install dependencies
+      run: npm ci
+    - name: Run unit tests
+      run: npm test
+    - name: Lint code
+      run: npm run lint
