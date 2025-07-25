@@ -8,7 +8,6 @@ const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const exec = __nccwpck_require__(1514);
 const fs = __nccwpck_require__(7147);
-const path = __nccwpck_require__(1017);
 
 // Conventional commit types mapping to changelog sections
 const COMMIT_TYPE_MAPPING = {

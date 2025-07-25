@@ -2,7 +2,6 @@ const core = require('@actions/core');
 const github = require('@actions/github');
 const exec = require('@actions/exec');
 const fs = require('fs');
-const path = require('path');
 
 // Conventional commit types mapping to changelog sections
 const COMMIT_TYPE_MAPPING = {
