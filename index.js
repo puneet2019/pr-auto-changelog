@@ -30,6 +30,9 @@ async function run() {
     const octokit = github.getOctokit(token);
     const context = github.context;
 
+    core.info(`Event name: ${context.eventName}`);
+    core.info(`Comment trigger: "${commentTrigger}"`);
+
     // Only run on pull request events
     if (context.eventName !== 'pull_request' && context.eventName !== 'issue_comment') {
       core.info('Action only runs on pull request events or issue comments');
@@ -42,15 +45,21 @@ async function run() {
     // Get PR number based on event type
     if (context.eventName === 'pull_request') {
       prNumber = context.payload.pull_request.number;
+      core.info(`PR event - PR number: ${prNumber}`);
     } else if (context.eventName === 'issue_comment') {
       prNumber = context.payload.issue.number;
+      core.info(`Comment event - Issue/PR number: ${prNumber}`);
       
       // Check if the comment contains the trigger
       const comment = context.payload.comment.body;
+      core.info(`Comment body: "${comment}"`);
+      core.info(`Looking for trigger: "${commentTrigger}"`);
+      
       if (!comment.includes(commentTrigger)) {
         core.info('Comment does not contain changelog trigger');
         return;
       }
+      core.info('Comment contains trigger - proceeding with parsing');
     }
 
     // Get PR details
@@ -67,13 +76,19 @@ async function run() {
       const comment = context.payload.comment.body;
       const entry = parseChangelogComment(comment, commentTrigger, pr, prNumber);
       if (entry) {
+        core.info(`Parsed changelog entry: ${JSON.stringify(entry)}`);
         changelogEntries.push(entry);
+      } else {
+        core.info('Failed to parse changelog entry from comment');
       }
     } else if (autoCategorize) {
       // Auto-categorize based on PR title and conventional commits
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
+        core.info(`Parsed conventional commit entry: ${JSON.stringify(entry)}`);
         changelogEntries.push(entry);
+      } else {
+        core.info('Failed to parse conventional commit from PR title');
       }
     }
 
@@ -105,10 +120,21 @@ async function run() {
 }
 
 function parseChangelogComment(comment, trigger, pr, prNumber) {
+  core.info(`Parsing comment: "${comment}"`);
+  core.info(`Looking for trigger: "${trigger}"`);
+  
   const lines = comment.split('\n');
+  core.info(`Comment has ${lines.length} lines`);
+  
   for (const line of lines) {
-    if (line.trim().startsWith(trigger)) {
-      const description = line.replace(trigger, '').trim();
+    const trimmedLine = line.trim();
+    core.info(`Checking line: "${trimmedLine}"`);
+    core.info(`Line starts with trigger: ${trimmedLine.startsWith(trigger)}`);
+    
+    if (trimmedLine.startsWith(trigger)) {
+      const description = trimmedLine.replace(trigger, '').trim();
+      core.info(`Found trigger! Description: "${description}"`);
+      
       if (description) {
         return {
           type: 'Manual',
@@ -117,9 +143,12 @@ function parseChangelogComment(comment, trigger, pr, prNumber) {
           prUrl: pr.html_url,
           section: 'Changes' // Default section for manual entries
         };
+      } else {
+        core.info('Description is empty after removing trigger');
       }
     }
   }
+  core.info('No valid changelog entry found in comment');
   return null;
 }
 
