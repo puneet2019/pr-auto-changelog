@@ -8,14 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
-- Implemented PR Auto Changelog functionality ([#1](https://github.com/puneet2019/pr-auto-changelog/pull/1))
-- Added conventional commit parsing for automatic categorization ([#1](https://github.com/puneet2019/pr-auto-changelog/pull/1))
-- Added comment-based changelog entry support ([#1](https://github.com/puneet2019/pr-auto-changelog/pull/1))
 - listen to /changelog comment and auto commit changlog ([#21](https://github.com/puneet2019/pr-auto-changelog/pull/21))
 
-### Documentation
-- Created comprehensive README with usage examples ([#1](https://github.com/puneet2019/pr-auto-changelog/pull/1))
-- Added workflow examples and configuration options ([#1](https://github.com/puneet2019/pr-auto-changelog/pull/1))
 
 ## [1.0.0] - 2024-01-20
 
