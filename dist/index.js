@@ -285,10 +285,45 @@ async function commitChanges(changelogPath, entriesCount) {
     await exec.exec('git', ['config', 'user.name', 'github-actions[bot]']);
     await exec.exec('git', ['config', 'user.email', 'github-actions[bot]@users.noreply.github.com']);
     
+    // Get the current branch name from the PR
+    const context = github.context;
+    let branchName;
+    
+    if (context.eventName === 'pull_request') {
+      branchName = context.payload.pull_request.head.ref;
+    } else if (context.eventName === 'issue_comment') {
+      // For comments, we need to get the PR details to find the branch
+      const { owner, repo } = context.repo;
+      const prNumber = context.payload.issue.number;
+      
+      const octokit = github.getOctokit(core.getInput('github-token'));
+      const { data: pr } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber
+      });
+      
+      branchName = pr.head.ref;
+    }
+    
+    core.info(`Using branch: ${branchName}`);
+    
+    // Checkout the PR branch if we're in detached HEAD
+    try {
+      await exec.exec('git', ['checkout', branchName]);
+      core.info(`Successfully checked out branch: ${branchName}`);
+    } catch (error) {
+      core.warning(`Could not checkout branch ${branchName}, trying to create it: ${error.message}`);
+      // Try to create the branch if it doesn't exist
+      await exec.exec('git', ['checkout', '-b', branchName]);
+    }
+    
     // Add and commit changes
     await exec.exec('git', ['add', changelogPath]);
     await exec.exec('git', ['commit', '-m', `chore: update changelog with ${entriesCount} new entries`]);
-    await exec.exec('git', ['push']);
+    
+    // Push changes
+    await exec.exec('git', ['push', 'origin', branchName]);
     
     core.info('Successfully committed and pushed changelog changes');
   } catch (error) {

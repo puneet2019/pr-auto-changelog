@@ -22,6 +22,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref || github.head_ref || github.ref }}
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
       - name: Run PR Auto Changelog
         id: changelog
@@ -42,6 +48,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "- **PR Title:** ${{ github.event.pull_request.title }}"
             echo "- **PR Number:** #${{ github.event.pull_request.number }}"
+            echo "- **Branch:** ${{ github.event.pull_request.head.ref }}"
           elif [ "${{ github.event_name }}" = "issue_comment" ]; then
             echo "- **Comment:** ${{ github.event.comment.body }}"
             echo "- **PR Number:** #${{ github.event.issue.number }}"
@@ -62,4 +69,7 @@ jobs:
           git status --porcelain
           echo ""
           echo "## 📊 Git Log (Last Commit):"
-          git log -1 --oneline 
+          git log -1 --oneline
+          echo ""
+          echo "## 🌿 Current Branch:"
+          git branch --show-current 

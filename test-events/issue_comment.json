@@ -1,0 +1,27 @@
+{
+  "issue": {
+    "number": 21,
+    "pull_request": {
+      "html_url": "https://github.com/puneet2019/pr-auto-changelog/pull/21",
+      "number": 21,
+      "title": "Test PR for changelog action"
+    }
+  },
+  "comment": {
+    "body": "/changelog: This is a test changelog entry from Act",
+    "id": 123456,
+    "user": {
+      "login": "puneet2019"
+    }
+  },
+  "repository": {
+    "owner": {
+      "login": "puneet2019"
+    },
+    "name": "pr-auto-changelog",
+    "full_name": "puneet2019/pr-auto-changelog"
+  },
+  "sender": {
+    "login": "puneet2019"
+  }
+} 
