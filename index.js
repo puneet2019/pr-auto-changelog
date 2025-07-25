@@ -181,6 +181,7 @@ async function updateChangelog(changelogPath, entries) {
     // Read existing changelog or create new one
     if (fs.existsSync(changelogPath)) {
       changelogContent = fs.readFileSync(changelogPath, 'utf8');
+      core.info(`Read existing changelog from ${changelogPath}`);
     } else {
       changelogContent = `# Changelog
 
@@ -192,6 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 `;
+      core.info(`Created new changelog content`);
     }
 
     // Group entries by section
@@ -202,6 +204,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       }
       entriesBySection[entry.section].push(entry);
     });
+
+    core.info(`Grouped entries by section: ${Object.keys(entriesBySection).join(', ')}`);
 
     // Find or create Unreleased section
     let unreleasedIndex = changelogContent.indexOf('## [Unreleased]');
@@ -217,6 +221,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
                           changelogContent.slice(headerEnd);
         unreleasedIndex = changelogContent.indexOf('## [Unreleased]');
       }
+      core.info(`Added Unreleased section at index ${unreleasedIndex}`);
+    } else {
+      core.info(`Found existing Unreleased section at index ${unreleasedIndex}`);
     }
 
     // Find the end of the Unreleased section
@@ -237,6 +244,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         const sectionHeader = `\n### ${sectionName}\n\n`;
         unreleasedContent += sectionHeader;
         sectionIndex = unreleasedContent.indexOf(`### ${sectionName}`);
+        core.info(`Added new section: ${sectionName}`);
+      } else {
+        core.info(`Found existing section: ${sectionName}`);
       }
 
       // Find end of this section
@@ -245,16 +255,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         sectionEndIndex = unreleasedContent.length;
       }
 
-      // Add entries to this section
-      const sectionEntries = entriesBySection[sectionName];
-      const newEntries = sectionEntries.map(entry => {
-        const scopeText = entry.scope ? `**${entry.scope}**: ` : '';
-        return `- ${scopeText}${entry.description} ([#${entry.prNumber}](${entry.prUrl}))`;
-      }).join('\n') + '\n';
+      // Get existing entries in this section to check for duplicates
+      const sectionContent = unreleasedContent.slice(sectionIndex, sectionEndIndex);
+      const existingEntries = sectionContent.split('\n').filter(line => 
+        line.trim().startsWith('- ') && line.includes('([#')
+      );
 
-      unreleasedContent = unreleasedContent.slice(0, sectionEndIndex) + 
-                          newEntries + 
-                          unreleasedContent.slice(sectionEndIndex);
+      // Create new entries, checking for duplicates
+      const sectionEntries = entriesBySection[sectionName];
+      const newEntries = [];
+      
+      sectionEntries.forEach(entry => {
+        const scopeText = entry.scope ? `**${entry.scope}**: ` : '';
+        const newEntryText = `${scopeText}${entry.description} ([#${entry.prNumber}](${entry.prUrl}))`;
+        const newEntryLine = `- ${newEntryText}`;
+        
+        // Check if this entry already exists (by PR number)
+        const existingEntryIndex = existingEntries.findIndex(existingLine => {
+          return existingLine.includes(`[#${entry.prNumber}](`);
+        });
+        
+        if (existingEntryIndex === -1) {
+          // New entry, add it
+          newEntries.push(newEntryLine);
+          core.info(`Adding new entry: ${newEntryText}`);
+        } else {
+          // Entry exists, update it
+          const existingLine = existingEntries[existingEntryIndex];
+          const existingText = existingLine.replace(/^- /, '').replace(/ \(\[#\d+\]\([^)]+\)\)$/, '');
+          const newText = newEntryText.replace(/ \(\[#\d+\]\([^)]+\)\)$/, '');
+          
+          if (existingText !== newText) {
+            // Description changed, update the entry
+            core.info(`Updating existing entry: "${existingText}" → "${newText}"`);
+            // Replace the existing entry in the section content
+            const updatedSectionContent = sectionContent.replace(existingLine, newEntryLine);
+            unreleasedContent = unreleasedContent.replace(sectionContent, updatedSectionContent);
+          } else {
+            core.info(`Entry unchanged, skipping: ${newEntryText}`);
+          }
+        }
+      });
+
+      if (newEntries.length > 0) {
+        const newEntriesText = newEntries.join('\n') + '\n';
+        
+        unreleasedContent = unreleasedContent.slice(0, sectionEndIndex) + 
+                            newEntriesText + 
+                            unreleasedContent.slice(sectionEndIndex);
+        
+        core.info(`Added ${newEntries.length} new entries to section: ${sectionName}`);
+      } else {
+        core.info(`No new entries to add to section: ${sectionName}`);
+      }
     });
 
     // Reconstruct full changelog
@@ -264,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     // Write updated changelog
     fs.writeFileSync(changelogPath, newChangelogContent);
-    core.info(`Updated ${changelogPath} with ${entries.length} new entries`);
+    core.info(`Updated ${changelogPath} with new entries (duplicates filtered out)`);
     
     return true;
   } catch (error) {
