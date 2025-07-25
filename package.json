@@ -1,8 +1,11 @@
 {
   "name": "pr-auto-changelog",
   "version": "1.0.0",
-  "description": "JavaScript Action Template",
+  "description": "Automatically update changelog based on PR comments and conventional commits",
   "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "lint": "eslint .",
     "prepare": "ncc build index.js -o dist --source-map --license licenses.txt",
@@ -16,7 +19,9 @@
   "keywords": [
     "GitHub",
     "Actions",
-    "JavaScript"
+    "JavaScript",
+    "changelog",
+    "automation"
   ],
   "author": "",
   "license": "MIT",

@@ -23,5 +23,5 @@ outputs:
   changes-added:
     description: 'Number of changes added to changelog'
 runs:
-  using: 'node16'
+  using: 'node22'
   main: 'dist/index.js'
