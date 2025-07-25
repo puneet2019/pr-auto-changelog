@@ -1,0 +1,56 @@
+name: "PR Auto Changelog Test"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  test-changelog:
+    runs-on: ubuntu-latest
+    # Only run on PRs and comments on PRs
+    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Test PR Auto Changelog
+        id: changelog
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changelog-path: 'CHANGELOG.md'
+          auto-categorize: true
+          comment-trigger: '/changelog:'
+        
+      - name: Display Results
+        run: |
+          echo "🔍 Test Results:"
+          echo "- Changelog Updated: ${{ steps.changelog.outputs.changelog-updated }}"
+          echo "- Changes Added: ${{ steps.changelog.outputs.changes-added }}"
+          echo "- Event Type: ${{ github.event_name }}"
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "- PR Title: ${{ github.event.pull_request.title }}"
+            echo "- PR Number: ${{ github.event.pull_request.number }}"
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo "- Comment: ${{ github.event.comment.body }}"
+            echo "- PR Number: ${{ github.event.issue.number }}"
+          fi
+          
+      - name: Show Changelog (if updated)
+        if: steps.changelog.outputs.changelog-updated == 'true'
+        run: |
+          echo "📝 Updated Changelog:"
+          echo "===================="
+          cat CHANGELOG.md
+          echo "====================" 

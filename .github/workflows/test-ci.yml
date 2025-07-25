@@ -3,26 +3,50 @@ name: test-ci
 on:
   push:
     branches: [ puneet/pr-auto-ch ]
+  pull_request:
+    branches: [ puneet/pr-auto-ch ]
 
 jobs:
   test-ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
 
     strategy:
       matrix:
-        node-version: [ 16.x ]
+        node-version: [ 16.x, 18.x ]
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: ./package-lock.json
+          
       - name: Install dependencies
         run: npm ci
-      - name: PR automerge
+        
+      - name: Run tests
+        run: npm test
+        
+      - name: Test PR Auto Changelog Action
         uses: ./
         with:
-          milliseconds: 1000
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changelog-path: 'CHANGELOG.md'
+          auto-categorize: true
+          comment-trigger: '/changelog:'
+          
+      - name: Check action outputs
+        run: |
+          echo "✅ PR Auto Changelog action executed successfully"
+          echo "Repository: ${{ github.repository }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "PR/Issue: ${{ github.event.number || 'N/A' }}"
