@@ -34,7 +34,7 @@ async function run() {
     const autoCategorize = core.getInput('auto-categorize') === 'true';
     const commentTrigger = core.getInput('comment-trigger');
 
-    const octokit = github.getRestClient(token);
+    const octokit = github.getOctokit(token);
     const context = github.context;
 
     // Only run on pull request events
