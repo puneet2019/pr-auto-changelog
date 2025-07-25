@@ -49,9 +49,12 @@ async function run() {
     } else if (context.eventName === 'issue_comment') {
       prNumber = context.payload.issue.number;
       core.info(`Comment event - Issue/PR number: ${prNumber}`);
-      
-      // Check if the comment contains the trigger
       const comment = context.payload.comment.body;
+      const commentId = context.payload.comment.id;
+      const commentAction = context.payload.action; // 'created' or 'edited'
+      
+      core.info(`Comment action: ${commentAction}`);
+      core.info(`Comment ID: ${commentId}`);
       core.info(`Comment body: "${comment}"`);
       core.info(`Looking for trigger: "${commentTrigger}"`);
       
@@ -370,21 +373,6 @@ async function commitChanges(changelogPath, entriesCount) {
       core.warning(`Could not checkout branch ${branchName}, trying to create it: ${error.message}`);
       // Try to create the branch if it doesn't exist
       await exec.exec('git', ['checkout', '-b', branchName]);
-    }
-    
-    // Check if there are any changes to commit
-    let status = '';
-    await exec.exec('git', ['status', '--porcelain'], [], {
-      listeners: {
-        stdout: (data) => {
-          status += data.toString();
-        }
-      }
-    });
-    
-    if (!status.trim()) {
-      core.info('No changes to commit - changelog is already up to date');
-      return;
     }
     
     // Add and commit changes
