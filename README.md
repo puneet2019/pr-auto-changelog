@@ -27,7 +27,7 @@ on:
   pull_request:
     types: [opened, synchronize]
   issue_comment:
-    types: [created]
+    types: [created, edited]
 
 jobs:
   changelog:
@@ -78,6 +78,12 @@ This will add an entry like:
 ```markdown
 - Added user authentication feature with JWT tokens ([#123](https://github.com/owner/repo/pull/123))
 ```
+
+**Multiple Comments & Edits:**
+- The action captures both `created` and `edited` comment events
+- If you edit your comment, the changelog entry will be updated automatically
+- Multiple comments from the same user will update the existing entry (latest comment wins)
+- Each PR can have only one changelog entry per user
 
 ### Method 2: Conventional Commit Auto-Categorization
 

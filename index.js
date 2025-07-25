@@ -49,9 +49,12 @@ async function run() {
     } else if (context.eventName === 'issue_comment') {
       prNumber = context.payload.issue.number;
       core.info(`Comment event - Issue/PR number: ${prNumber}`);
-      
-      // Check if the comment contains the trigger
       const comment = context.payload.comment.body;
+      const commentId = context.payload.comment.id;
+      const commentAction = context.payload.action; // 'created' or 'edited'
+      
+      core.info(`Comment action: ${commentAction}`);
+      core.info(`Comment ID: ${commentId}`);
       core.info(`Comment body: "${comment}"`);
       core.info(`Looking for trigger: "${commentTrigger}"`);
       
