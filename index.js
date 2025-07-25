@@ -375,21 +375,6 @@ async function commitChanges(changelogPath, entriesCount) {
       await exec.exec('git', ['checkout', '-b', branchName]);
     }
     
-    // Check if there are any changes to commit
-    let status = '';
-    await exec.exec('git', ['status', '--porcelain'], [], {
-      listeners: {
-        stdout: (data) => {
-          status += data.toString();
-        }
-      }
-    });
-    
-    if (!status.trim()) {
-      core.info('No changes to commit - changelog is already up to date');
-      return;
-    }
-    
     // Add and commit changes
     await exec.exec('git', ['add', changelogPath]);
     
