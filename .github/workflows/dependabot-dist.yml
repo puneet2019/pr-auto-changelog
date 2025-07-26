@@ -1,0 +1,69 @@
+name: Dependabot Dist Rebuild
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  rebuild-dist:
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild dist/
+        run: npm run prepare
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Dist folder needs updating"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "✅ Dist folder is up to date"
+          fi
+
+      - name: Commit and push dist changes
+        if: steps.check-changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add dist/
+          git commit -m "chore: rebuild dist/ after dependency updates
+
+          Auto-rebuilt distribution files after Dependabot dependency updates.
+          
+          This ensures the action's compiled code is up to date with the latest dependencies."
+          git push
+
+      - name: Comment on PR
+        if: steps.check-changes.outputs.changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🔧 **Dependabot Dist Rebuild**\n\nI\'ve automatically rebuilt the `dist/` folder after the dependency updates to ensure the action\'s compiled code is up to date.\n\n✅ **Changes committed:** Updated distribution files\n\nThis is normal for dependency updates that affect the build process (like `@vercel/ncc`).'
+            }) 
