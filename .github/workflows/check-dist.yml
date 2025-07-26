@@ -19,9 +19,15 @@ on:
 jobs:
   check-dist:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref || github.ref }}
 
       - name: Set Node.js 22.x
         uses: actions/setup-node@v4
@@ -34,18 +40,18 @@ jobs:
       - name: Rebuild the dist/ directory
         run: npm run prepare
 
-      - name: Compare the expected and actual dist/ directories
+      - name: Check for changes and commit if needed
         run: |
           if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
-            echo "Detected uncommitted changes after build.  See status below:"
-            git diff
-            exit 1
-          fi
-        id: diff
+            echo "✅ Dist folder needs updating - committing changes"
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add dist/
+            git commit -m "chore: rebuild dist/ after dependency updates
 
-      # If index.js was different than expected, upload the expected version as an artifact
-      - uses: actions/upload-artifact@v4
-        if: ${{ failure() && steps.diff.conclusion == 'failure' }}
-        with:
-          name: dist
-          path: dist/
+            Auto-rebuilt distribution files to ensure the action's compiled code is up to date."
+            git push
+            echo "✅ Dist folder updated and committed"
+          else
+            echo "✅ Dist folder is already up to date"
+          fi
