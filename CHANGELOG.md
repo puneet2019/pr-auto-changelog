@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - enhance comment handling for edits and multiple comments ([#22](https://github.com/puneet2019/pr-auto-changelog/pull/22))
 
+### Chores
+
+- update README.md ([#24](https://github.com/puneet2019/pr-auto-changelog/pull/24))
+
 ## [1.0.0] - 2024-01-20
 
 ### Added
