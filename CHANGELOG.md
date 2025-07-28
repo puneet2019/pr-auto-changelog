@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Chores
 
 - update README.md ([#24](https://github.com/puneet2019/pr-auto-changelog/pull/24))
+- **deps-dev**: bump eslint from 8.51.0 to 9.32.0 ([#26](https://github.com/puneet2019/pr-auto-changelog/pull/26))
 
 ## [1.0.0] - 2024-01-20
 
