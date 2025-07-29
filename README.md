@@ -1,6 +1,6 @@
 # PR Auto Changelog
 
-Automatically update your project's changelog based on pull request comments and conventional commit formats.
+Automatically update your project's changelog based on pull request descriptions and conventional commit formats.
 
 ## Quick Start
 
@@ -13,13 +13,13 @@ name: Auto Changelog
 on:
   pull_request:
     types: [opened, synchronize, edited]
-  issue_comment:
-    types: [created, edited]
 
 jobs:
   changelog:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,13 +54,15 @@ Add to your PR description:
 /changelog: Added user authentication with JWT tokens
 ```
 
+**Priority:** If `/changelog:` is found in PR description, it takes precedence over the PR title.
+
 ## Configuration
 
 | Input | Description | Default |
 |-------|-------------|---------|
 | `changelog-path` | Path to changelog file | `CHANGELOG.md` |
 | `auto-categorize` | Use PR title for categorization | `true` |
-| `comment-trigger` | Comment trigger phrase | `/changelog:` |
+| `comment-trigger` | Trigger phrase in PR description | `/changelog:` |
 | `skip-dependabot` | Skip dependabot PRs | `true` |
 
 ## Examples
@@ -80,12 +82,31 @@ Add to your PR description:
 ```
 
 ### Example 2: Manual Entry
-**PR Description:** `/changelog: Improved error handling and user feedback`
+**PR Description:**
+```markdown
+- [x] auto-generate changelog
+
+/changelog: Improved error handling and user feedback
+```
 
 **Result in CHANGELOG.md:**
 ```markdown
 ### Changes
 - Improved error handling and user feedback ([#124](https://github.com/owner/repo/pull/124))
+```
+
+### Example 3: Conventional Format in Description
+**PR Description:**
+```markdown
+- [x] auto-generate changelog
+
+/changelog: feat(auth): add JWT token refresh
+```
+
+**Result in CHANGELOG.md:**
+```markdown
+### Features
+- **auth**: add JWT token refresh ([#125](https://github.com/owner/repo/pull/125))
 ```
 
 ## Supported Commit Types
@@ -106,9 +127,15 @@ Add to your PR description:
 
 ## Behavior
 
-- **✅ Checked** `[x] auto-generate changelog` → Entry is added and auto-committed
-- **❌ Unchecked** `[ ] auto-generate changelog` → Auto-generated entries are removed
-- **No checkbox** → Entry is skipped (default)
+- **✅ Checked** `[x] auto-generate changelog` → Entry is added and auto-committed with `[AUTO-CHANGELOG]` prefix
+- **❌ Unchecked** `[ ] auto-generate changelog` → Auto-generated entries are removed (manual entries preserved)
+- **No checkbox** → Entry is skipped (default behavior)
+
+## Auto-Generated Commits
+
+When the checkbox is checked, the action automatically commits changes with identifiable messages:
+- **Adding entries:** `[AUTO-CHANGELOG] chore: update changelog with X new entries for PR #Y`
+- **Removing entries:** `[AUTO-CHANGELOG] chore: remove auto-generated changelog entries for PR #Y`
 
 ## PR Template
 
@@ -124,9 +151,12 @@ Create `.github/pull_request_template.md`:
 <!-- Check this box if you want this PR to be included in the changelog -->
 - [ ] auto-generate changelog
 
-<!-- 
+<!--
 PR title should follow conventional commit format: type(scope): description
 Examples: feat(auth): add user authentication, fix(api): resolve login bug
+
+Or add a custom entry in PR description:
+/changelog: Your custom changelog entry here
 -->
 ```
 
@@ -137,7 +167,6 @@ The action requires these permissions:
 permissions:
   contents: write
   pull-requests: read
-  issues: read
 ```
 
 ## License
