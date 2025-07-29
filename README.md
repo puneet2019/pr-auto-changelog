@@ -57,7 +57,7 @@ jobs:
 | `changelog-path` | Path to the changelog file | No | `CHANGELOG.md` |
 | `auto-categorize` | Auto-categorize based on conventional commits | No | `true` |
 | `comment-trigger` | Comment trigger phrase | No | `/changelog:` |
-| `skip-dependabot` | Skip processing for dependabot PRs | No | `false` |
+| `skip-dependabot` | Skip processing for dependabot PRs | No | `true` |
 
 ### Output Parameters
 
