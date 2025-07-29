@@ -163,8 +163,22 @@ async function run() {
 
     let changelogEntries = [];
 
-    // First, check for changelog comments in the PR
-    const changelogComment = await findChangelogComment(octokit, owner, repo, prNumber, commentTrigger);
+    // Check for changelog comments - prioritize current comment if it's an issue_comment event
+    let changelogComment = null;
+    
+    if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
+      // Use the current comment from the event
+      const currentComment = context.payload.comment.body;
+      if (currentComment && currentComment.includes(commentTrigger)) {
+        changelogComment = currentComment;
+      }
+    }
+    
+    // If no current comment or not an issue_comment event, search all comments
+    if (!changelogComment) {
+      changelogComment = await findChangelogComment(octokit, owner, repo, prNumber, commentTrigger);
+    }
+    
     if (changelogComment) {
       const entry = parseChangelogComment(changelogComment, commentTrigger, pr, prNumber);
       if (entry) {
