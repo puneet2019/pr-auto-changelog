@@ -163,15 +163,17 @@ async function run() {
 
     let changelogEntries = [];
 
-    // Parse comments for changelog entries
-    if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      const comment = context.payload.comment.body;
-      const entry = parseChangelogComment(comment, commentTrigger, pr, prNumber);
-      if (entry) {
-        changelogEntries.push(entry);
-      }
+    // Check for changelog entry in PR description
+    let changelogEntry = null;
+    
+    if (pr.body && pr.body.includes(commentTrigger)) {
+      changelogEntry = parseChangelogComment(pr.body, commentTrigger, pr, prNumber);
+    }
+    
+    if (changelogEntry) {
+      changelogEntries.push(changelogEntry);
     } else if (autoCategorize) {
-      // Auto-categorize based on PR title and conventional commits
+      // Fallback to PR title if no changelog entry in description
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
@@ -201,7 +203,9 @@ async function run() {
         core.setOutput(OUTPUT_NAMES.CHANGELOG_UPDATED, OUTPUT_VALUES.CHANGELOG_UPDATED_TRUE);
         core.setOutput(OUTPUT_NAMES.CHANGES_ADDED, changelogEntries.length.toString());
       } else {
-        core.setFailed('Failed to update changelog');
+        core.info('No changes needed - changelog is already up to date');
+        core.setOutput(OUTPUT_NAMES.CHANGELOG_UPDATED, OUTPUT_VALUES.CHANGELOG_UPDATED_FALSE);
+        core.setOutput(OUTPUT_NAMES.CHANGES_ADDED, OUTPUT_VALUES.CHANGES_ADDED_ZERO);
       }
     } else {
       core.info('No changelog entries to process');
@@ -214,6 +218,8 @@ async function run() {
   }
 }
 
+
+
 function parseChangelogComment(comment, trigger, pr, prNumber) {
   const lines = comment.split('\n');
   
@@ -224,6 +230,13 @@ function parseChangelogComment(comment, trigger, pr, prNumber) {
       const description = trimmedLine.replace(trigger, '').trim();
       
       if (description) {
+        // First, try to parse as conventional commit format
+        const conventionalEntry = parseConventionalCommit(description, pr, prNumber);
+        if (conventionalEntry) {
+          return conventionalEntry;
+        }
+        
+        // Fallback to manual entry
         return {
           type: ENTRY_TYPES.MANUAL,
           description: description,

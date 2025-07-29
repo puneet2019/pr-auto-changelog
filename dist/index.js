@@ -169,15 +169,29 @@ async function run() {
 
     let changelogEntries = [];
 
-    // Parse comments for changelog entries
+    // Check for changelog comments - prioritize current comment if it's an issue_comment event
+    let changelogComment = null;
+    
     if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      const comment = context.payload.comment.body;
-      const entry = parseChangelogComment(comment, commentTrigger, pr, prNumber);
+      // Use the current comment from the event
+      const currentComment = context.payload.comment.body;
+      if (currentComment && currentComment.includes(commentTrigger)) {
+        changelogComment = currentComment;
+      }
+    }
+    
+    // If no current comment or not an issue_comment event, search all comments
+    if (!changelogComment) {
+      changelogComment = await findChangelogComment(octokit, owner, repo, prNumber, commentTrigger);
+    }
+    
+    if (changelogComment) {
+      const entry = parseChangelogComment(changelogComment, commentTrigger, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
       }
     } else if (autoCategorize) {
-      // Auto-categorize based on PR title and conventional commits
+      // Fallback to PR title if no comment found
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
@@ -220,6 +234,29 @@ async function run() {
   }
 }
 
+async function findChangelogComment(octokit, owner, repo, prNumber, trigger) {
+  try {
+    // Get all comments for the PR
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber
+    });
+
+    // Find the most recent comment with the changelog trigger
+    for (const comment of comments.reverse()) {
+      if (comment.body && comment.body.includes(trigger)) {
+        return comment.body;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    core.error(`Failed to find changelog comment: ${error.message}`);
+    return null;
+  }
+}
+
 function parseChangelogComment(comment, trigger, pr, prNumber) {
   const lines = comment.split('\n');
   
@@ -230,6 +267,13 @@ function parseChangelogComment(comment, trigger, pr, prNumber) {
       const description = trimmedLine.replace(trigger, '').trim();
       
       if (description) {
+        // First, try to parse as conventional commit format
+        const conventionalEntry = parseConventionalCommit(description, pr, prNumber);
+        if (conventionalEntry) {
+          return conventionalEntry;
+        }
+        
+        // Fallback to manual entry
         return {
           type: ENTRY_TYPES.MANUAL,
           description: description,

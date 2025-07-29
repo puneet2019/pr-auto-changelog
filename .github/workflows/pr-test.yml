@@ -3,14 +3,12 @@ name: "PR Auto Changelog Integration Test"
 on:
   pull_request:
     types: [opened, synchronize, edited]
-  issue_comment:
-    types: [created, edited]
 
 jobs:
   test-changelog:
     runs-on: ubuntu-latest
-    # Only run on PRs and comments on PRs
-    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    # Only run on PRs
+    if: github.event_name == 'pull_request'
     permissions:
       contents: write
       pull-requests: read
@@ -44,15 +42,11 @@ jobs:
           echo "- **Changelog Updated:** ${{ steps.changelog.outputs.changelog-updated }}"
           echo "- **Changes Added:** ${{ steps.changelog.outputs.changes-added }}"
           echo "- **Event Type:** ${{ github.event_name }}"
+          echo "- **Event Action:** ${{ github.event.action }}"
           
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "- **PR Title:** ${{ github.event.pull_request.title }}"
-            echo "- **PR Number:** #${{ github.event.pull_request.number }}"
-            echo "- **Branch:** ${{ github.event.pull_request.head.ref }}"
-          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
-            echo "- **Comment:** ${{ github.event.comment.body }}"
-            echo "- **PR Number:** #${{ github.event.issue.number }}"
-          fi
+          echo "- **PR Title:** ${{ github.event.pull_request.title }}"
+          echo "- **PR Number:** #${{ github.event.pull_request.number }}"
+          echo "- **Branch:** ${{ github.event.pull_request.head.ref }}"
           
       - name: Show Updated Changelog
         if: steps.changelog.outputs.changelog-updated == 'true'
