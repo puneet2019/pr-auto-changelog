@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Update Readme.md ([#31](https://github.com/puneet2019/pr-auto-changelog/pull/31))
 
 ### Changes
 
