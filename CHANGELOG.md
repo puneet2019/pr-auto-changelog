@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - listen to /changelog comment and auto commit changlog ([#21](https://github.com/puneet2019/pr-auto-changelog/pull/21))
 
 - enhance comment handling for edits and multiple comments ([#22](https://github.com/puneet2019/pr-auto-changelog/pull/22))
+- skip dependabot, and have a PR template  ([#28](https://github.com/puneet2019/pr-auto-changelog/pull/28))
 
 ### Chores
 

@@ -17,6 +17,10 @@ inputs:
     description: 'Comment trigger phrase'
     required: false
     default: '/changelog:'
+  skip-dependabot:
+    description: 'Skip processing for dependabot PRs'
+    required: false
+    default: 'true'
 outputs:
   changelog-updated:
     description: 'Whether the changelog was updated'
