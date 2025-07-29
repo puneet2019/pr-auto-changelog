@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- update readme so anyone can follow and cleanup CI ([#31](https://github.com/puneet2019/pr-auto-changelog/pull/31))
+- update readme so anyone can follow and cleanup CI and categorize comment chlog ([#31](https://github.com/puneet2019/pr-auto-changelog/pull/31))
 
 ### Changes
 
