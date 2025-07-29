@@ -163,29 +163,17 @@ async function run() {
 
     let changelogEntries = [];
 
-    // Check for changelog comments - prioritize current comment if it's an issue_comment event
-    let changelogComment = null;
+    // Check for changelog entry in PR description
+    let changelogEntry = null;
     
-    if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      // Use the current comment from the event
-      const currentComment = context.payload.comment.body;
-      if (currentComment && currentComment.includes(commentTrigger)) {
-        changelogComment = currentComment;
-      }
+    if (pr.body && pr.body.includes(commentTrigger)) {
+      changelogEntry = parseChangelogComment(pr.body, commentTrigger, pr, prNumber);
     }
     
-    // If no current comment or not an issue_comment event, search all comments
-    if (!changelogComment) {
-      changelogComment = await findChangelogComment(octokit, owner, repo, prNumber, commentTrigger);
-    }
-    
-    if (changelogComment) {
-      const entry = parseChangelogComment(changelogComment, commentTrigger, pr, prNumber);
-      if (entry) {
-        changelogEntries.push(entry);
-      }
+    if (changelogEntry) {
+      changelogEntries.push(changelogEntry);
     } else if (autoCategorize) {
-      // Fallback to PR title if no comment found
+      // Fallback to PR title if no changelog entry in description
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
@@ -230,28 +218,7 @@ async function run() {
   }
 }
 
-async function findChangelogComment(octokit, owner, repo, prNumber, trigger) {
-  try {
-    // Get all comments for the PR
-    const { data: comments } = await octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: prNumber
-    });
 
-    // Find the most recent comment with the changelog trigger
-    for (const comment of comments.reverse()) {
-      if (comment.body && comment.body.includes(trigger)) {
-        return comment.body;
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    core.error(`Failed to find changelog comment: ${error.message}`);
-    return null;
-  }
-}
 
 function parseChangelogComment(comment, trigger, pr, prNumber) {
   const lines = comment.split('\n');

@@ -48,8 +48,8 @@ Use conventional commit format in your PR title:
 - `fix: resolve login bug` → **Bug Fixes** section
 - `docs: update README` → **Documentation** section
 
-### Method 2: Comment
-Add a comment to your PR:
+### Method 2: PR Description
+Add to your PR description:
 ```
 /changelog: Added user authentication with JWT tokens
 ```
@@ -80,7 +80,7 @@ Add a comment to your PR:
 ```
 
 ### Example 2: Manual Entry
-**Comment:** `/changelog: Improved error handling and user feedback`
+**PR Description:** `/changelog: Improved error handling and user feedback`
 
 **Result in CHANGELOG.md:**
 ```markdown
