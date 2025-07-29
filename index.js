@@ -261,6 +261,13 @@ function parseChangelogComment(comment, trigger, pr, prNumber) {
       const description = trimmedLine.replace(trigger, '').trim();
       
       if (description) {
+        // First, try to parse as conventional commit format
+        const conventionalEntry = parseConventionalCommit(description, pr, prNumber);
+        if (conventionalEntry) {
+          return conventionalEntry;
+        }
+        
+        // Fallback to manual entry
         return {
           type: ENTRY_TYPES.MANUAL,
           description: description,
