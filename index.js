@@ -215,7 +215,9 @@ async function run() {
         core.setOutput(OUTPUT_NAMES.CHANGELOG_UPDATED, OUTPUT_VALUES.CHANGELOG_UPDATED_TRUE);
         core.setOutput(OUTPUT_NAMES.CHANGES_ADDED, changelogEntries.length.toString());
       } else {
-        core.setFailed('Failed to update changelog');
+        core.info('No changes needed - changelog is already up to date');
+        core.setOutput(OUTPUT_NAMES.CHANGELOG_UPDATED, OUTPUT_VALUES.CHANGELOG_UPDATED_FALSE);
+        core.setOutput(OUTPUT_NAMES.CHANGES_ADDED, OUTPUT_VALUES.CHANGES_ADDED_ZERO);
       }
     } else {
       core.info('No changelog entries to process');
