@@ -13,7 +13,8 @@ Automatically update your project's changelog based on pull request comments and
 - 📝 **Keep a Changelog format**: Follows the standard changelog format
 - 🔗 **PR linking**: Automatically includes PR numbers and links
 - 📂 **Section categorization**: Groups changes into Features, Bug Fixes, etc.
-- ⚡ **Auto-commit**: Commits changelog updates directly to the PR branch
+- ⚡ **Auto-commit**: Commits changelog updates when checkbox is checked
+- 🚫 **Skip options**: Skip dependabot PRs or use `[auto-generate changelog]` checkbox in PR descriptions
 
 ## Usage
 
@@ -56,6 +57,7 @@ jobs:
 | `changelog-path` | Path to the changelog file | No | `CHANGELOG.md` |
 | `auto-categorize` | Auto-categorize based on conventional commits | No | `true` |
 | `comment-trigger` | Comment trigger phrase | No | `/changelog:` |
+| `skip-dependabot` | Skip processing for dependabot PRs | No | `false` |
 
 ### Output Parameters
 
@@ -209,6 +211,43 @@ jobs:
   with:
     comment-trigger: '/update-changelog:'
 ```
+
+### Skip Dependabot PRs
+```yaml
+- uses: puneet2019/pr-auto-changelog@v1
+  with:
+    skip-dependabot: true
+```
+
+### Auto-Generate Changelog Checkbox
+By default, PRs are **skipped** from changelog processing. To include a PR in the changelog, add a checked checkbox to the PR description:
+
+```markdown
+## Description
+This PR adds a new feature.
+
+- [x] auto-generate changelog
+```
+
+**Default behavior (skipped):**
+```markdown
+## Description
+This PR updates documentation.
+
+- [ ] auto-generate changelog
+```
+
+**Dynamic behavior:**
+- ✅ **Checked** `[x] auto-generate changelog` → Entry is **added** to changelog and **auto-committed**
+- ❌ **Unchecked** `[ ] auto-generate changelog` → Entry is **skipped** (no removal)
+- **No checkbox** → Entry is **skipped** (default behavior)
+
+This is useful for:
+- Documentation-only changes
+- Dependabot dependency updates
+- Minor formatting changes
+- **Default opt-out behavior** - only explicitly marked PRs get changelog entries
+- **Selective auto-commit** - only checked PRs get auto-committed changelog updates
 
 ## Contributing
 

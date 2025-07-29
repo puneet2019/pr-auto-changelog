@@ -26,12 +26,12 @@ async function run() {
     const changelogPath = core.getInput('changelog-path');
     const autoCategorize = core.getInput('auto-categorize') === 'true';
     const commentTrigger = core.getInput('comment-trigger');
+    const skipDependabot = core.getInput('skip-dependabot') === 'true';
 
     const octokit = github.getOctokit(token);
     const context = github.context;
 
     core.info(`Event name: ${context.eventName}`);
-    core.info(`Comment trigger: "${commentTrigger}"`);
 
     // Only run on pull request events
     if (context.eventName !== 'pull_request' && context.eventName !== 'issue_comment') {
@@ -45,18 +45,9 @@ async function run() {
     // Get PR number based on event type
     if (context.eventName === 'pull_request') {
       prNumber = context.payload.pull_request.number;
-      core.info(`PR event - PR number: ${prNumber}`);
     } else if (context.eventName === 'issue_comment') {
       prNumber = context.payload.issue.number;
-      core.info(`Comment event - Issue/PR number: ${prNumber}`);
       const comment = context.payload.comment.body;
-      const commentId = context.payload.comment.id;
-      const commentAction = context.payload.action; // 'created' or 'edited'
-      
-      core.info(`Comment action: ${commentAction}`);
-      core.info(`Comment ID: ${commentId}`);
-      core.info(`Comment body: "${comment}"`);
-      core.info(`Looking for trigger: "${commentTrigger}"`);
       
       if (!comment.includes(commentTrigger)) {
         core.info('Comment does not contain changelog trigger');
@@ -72,6 +63,27 @@ async function run() {
       pull_number: prNumber
     });
 
+    // Check if we should skip dependabot PRs
+    if (skipDependabot && pr.user.login === 'dependabot[bot]') {
+      core.info('Skipping dependabot PR');
+      return;
+    }
+
+    // Check for auto-generate changelog checkbox in PR description
+    // Default: skip (unchecked), Only include when explicitly checked
+    const hasUncheckedCheckbox = pr.body && pr.body.includes('[ ] auto-generate changelog');
+    const hasCheckedCheckbox = pr.body && pr.body.includes('[x] auto-generate changelog');
+    
+    if (hasUncheckedCheckbox) {
+      core.info('Skipping due to unchecked auto-generate changelog checkbox in PR description');
+      return;
+    }
+    
+    // If checkbox is checked, include in changelog
+    if (hasCheckedCheckbox) {
+      core.info('Including in changelog due to checked auto-generate changelog checkbox');
+    }
+
     let changelogEntries = [];
 
     // Parse comments for changelog entries
@@ -79,19 +91,13 @@ async function run() {
       const comment = context.payload.comment.body;
       const entry = parseChangelogComment(comment, commentTrigger, pr, prNumber);
       if (entry) {
-        core.info(`Parsed changelog entry: ${JSON.stringify(entry)}`);
         changelogEntries.push(entry);
-      } else {
-        core.info('Failed to parse changelog entry from comment');
       }
     } else if (autoCategorize) {
       // Auto-categorize based on PR title and conventional commits
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
-        core.info(`Parsed conventional commit entry: ${JSON.stringify(entry)}`);
         changelogEntries.push(entry);
-      } else {
-        core.info('Failed to parse conventional commit from PR title');
       }
     }
 
@@ -110,8 +116,10 @@ async function run() {
       if (updated) {
         core.info('Changelog updated successfully');
         
-        // Commit changes
-        await commitChanges(changelogPath, changelogEntries.length);
+        // Only commit if checkbox is checked
+        if (hasCheckedCheckbox) {
+          await commitChanges(changelogPath, changelogEntries.length);
+        }
         
         core.setOutput('changelog-updated', 'true');
         core.setOutput('changes-added', changelogEntries.length.toString());
@@ -130,20 +138,13 @@ async function run() {
 }
 
 function parseChangelogComment(comment, trigger, pr, prNumber) {
-  core.info(`Parsing comment: "${comment}"`);
-  core.info(`Looking for trigger: "${trigger}"`);
-  
   const lines = comment.split('\n');
-  core.info(`Comment has ${lines.length} lines`);
   
   for (const line of lines) {
     const trimmedLine = line.trim();
-    core.info(`Checking line: "${trimmedLine}"`);
-    core.info(`Line starts with trigger: ${trimmedLine.startsWith(trigger)}`);
     
     if (trimmedLine.startsWith(trigger)) {
       const description = trimmedLine.replace(trigger, '').trim();
-      core.info(`Found trigger! Description: "${description}"`);
       
       if (description) {
         return {
@@ -153,12 +154,9 @@ function parseChangelogComment(comment, trigger, pr, prNumber) {
           prUrl: pr.html_url,
           section: 'Changes' // Default section for manual entries
         };
-      } else {
-        core.info('Description is empty after removing trigger');
       }
     }
   }
-  core.info('No valid changelog entry found in comment');
   return null;
 }
 
@@ -191,7 +189,6 @@ async function updateChangelog(changelogPath, entries) {
     // Read existing changelog or create new one
     if (fs.existsSync(changelogPath)) {
       changelogContent = fs.readFileSync(changelogPath, 'utf8');
-      core.info(`Read existing changelog from ${changelogPath}`);
     } else {
       changelogContent = `# Changelog
 
@@ -203,7 +200,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 `;
-      core.info(`Created new changelog content`);
     }
 
     // Group entries by section
@@ -214,8 +210,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       }
       entriesBySection[entry.section].push(entry);
     });
-
-    core.info(`Grouped entries by section: ${Object.keys(entriesBySection).join(', ')}`);
 
     // Find or create Unreleased section
     let unreleasedIndex = changelogContent.indexOf('## [Unreleased]');
@@ -231,9 +225,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
                           changelogContent.slice(headerEnd);
         unreleasedIndex = changelogContent.indexOf('## [Unreleased]');
       }
-      core.info(`Added Unreleased section at index ${unreleasedIndex}`);
-    } else {
-      core.info(`Found existing Unreleased section at index ${unreleasedIndex}`);
     }
 
     // Find the end of the Unreleased section
@@ -254,9 +245,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         const sectionHeader = `\n### ${sectionName}\n\n`;
         unreleasedContent += sectionHeader;
         sectionIndex = unreleasedContent.indexOf(`### ${sectionName}`);
-        core.info(`Added new section: ${sectionName}`);
-      } else {
-        core.info(`Found existing section: ${sectionName}`);
       }
 
       // Find end of this section
@@ -288,7 +276,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         if (existingEntryIndex === -1) {
           // New entry, add it
           newEntries.push(newEntryLine);
-          core.info(`Adding new entry: ${newEntryText}`);
         } else {
           // Entry exists, update it
           const existingLine = existingEntries[existingEntryIndex];
@@ -297,12 +284,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
           
           if (existingText !== newText) {
             // Description changed, update the entry
-            core.info(`Updating existing entry: "${existingText}" → "${newText}"`);
             // Replace the existing entry in the section content
             const updatedSectionContent = sectionContent.replace(existingLine, newEntryLine);
             unreleasedContent = unreleasedContent.replace(sectionContent, updatedSectionContent);
-          } else {
-            core.info(`Entry unchanged, skipping: ${newEntryText}`);
           }
         }
       });
@@ -313,10 +297,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         unreleasedContent = unreleasedContent.slice(0, sectionEndIndex) + 
                             newEntriesText + 
                             unreleasedContent.slice(sectionEndIndex);
-        
-        core.info(`Added ${newEntries.length} new entries to section: ${sectionName}`);
-      } else {
-        core.info(`No new entries to add to section: ${sectionName}`);
       }
     });
 
@@ -327,7 +307,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     // Write updated changelog
     fs.writeFileSync(changelogPath, newChangelogContent);
-    core.info(`Updated ${changelogPath} with new entries (duplicates filtered out)`);
     
     return true;
   } catch (error) {
@@ -335,6 +314,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     return false;
   }
 }
+
+
+
+
 
 async function commitChanges(changelogPath, entriesCount) {
   try {
@@ -363,12 +346,9 @@ async function commitChanges(changelogPath, entriesCount) {
       branchName = pr.head.ref;
     }
     
-    core.info(`Using branch: ${branchName}`);
-    
     // Checkout the PR branch if we're in detached HEAD
     try {
       await exec.exec('git', ['checkout', branchName]);
-      core.info(`Successfully checked out branch: ${branchName}`);
     } catch (error) {
       core.warning(`Could not checkout branch ${branchName}, trying to create it: ${error.message}`);
       // Try to create the branch if it doesn't exist
@@ -381,7 +361,6 @@ async function commitChanges(changelogPath, entriesCount) {
     // Try to commit, but don't fail if there's nothing to commit
     try {
       await exec.exec('git', ['commit', '-m', `chore: update changelog with ${entriesCount} new entries`]);
-      core.info('Successfully committed changelog changes');
     } catch (error) {
       if (error.message.includes('nothing to commit') || error.message.includes('no changes added to commit')) {
         core.info('No changes to commit - changelog is already up to date');
@@ -392,8 +371,6 @@ async function commitChanges(changelogPath, entriesCount) {
     
     // Push changes
     await exec.exec('git', ['push', 'origin', branchName]);
-    
-    core.info('Successfully committed and pushed changelog changes');
   } catch (error) {
     core.error(`Failed to commit changes: ${error.message}`);
     throw error;
