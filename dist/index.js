@@ -11,8 +11,7 @@ const fs = __nccwpck_require__(9896);
 
 // Constants for event types
 const EVENT_TYPES = {
-  PULL_REQUEST: 'pull_request',
-  ISSUE_COMMENT: 'issue_comment'
+  PULL_REQUEST: 'pull_request'
 };
 
 // Constants for checkbox states
@@ -115,27 +114,13 @@ async function run() {
     core.info(`Event name: ${context.eventName}`);
 
     // Only run on pull request events
-    if (context.eventName !== EVENT_TYPES.PULL_REQUEST && context.eventName !== EVENT_TYPES.ISSUE_COMMENT) {
-      core.info('Action only runs on pull request events or issue comments');
+    if (context.eventName !== EVENT_TYPES.PULL_REQUEST) {
+      core.info('Action only runs on pull request events');
       return;
     }
 
     const { owner, repo } = context.repo;
-    let prNumber;
-
-    // Get PR number based on event type
-    if (context.eventName === EVENT_TYPES.PULL_REQUEST) {
-      prNumber = context.payload.pull_request.number;
-    } else if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      prNumber = context.payload.issue.number;
-      const comment = context.payload.comment.body;
-      
-      if (!comment.includes(commentTrigger)) {
-        core.info('Comment does not contain changelog trigger');
-        return;
-      }
-      core.info('Comment contains trigger - proceeding with parsing');
-    }
+    const prNumber = context.payload.pull_request.number;
 
     // Get PR details
     const { data: pr } = await octokit.rest.pulls.get({
@@ -169,29 +154,17 @@ async function run() {
 
     let changelogEntries = [];
 
-    // Check for changelog comments - prioritize current comment if it's an issue_comment event
-    let changelogComment = null;
+    // Check for changelog entry in PR description
+    let changelogEntry = null;
     
-    if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      // Use the current comment from the event
-      const currentComment = context.payload.comment.body;
-      if (currentComment && currentComment.includes(commentTrigger)) {
-        changelogComment = currentComment;
-      }
+    if (pr.body && pr.body.includes(commentTrigger)) {
+      changelogEntry = parseChangelogComment(pr.body, commentTrigger, pr, prNumber);
     }
     
-    // If no current comment or not an issue_comment event, search all comments
-    if (!changelogComment) {
-      changelogComment = await findChangelogComment(octokit, owner, repo, prNumber, commentTrigger);
-    }
-    
-    if (changelogComment) {
-      const entry = parseChangelogComment(changelogComment, commentTrigger, pr, prNumber);
-      if (entry) {
-        changelogEntries.push(entry);
-      }
+    if (changelogEntry) {
+      changelogEntries.push(changelogEntry);
     } else if (autoCategorize) {
-      // Fallback to PR title if no comment found
+      // Fallback to PR title if no changelog entry in description
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
@@ -221,7 +194,9 @@ async function run() {
         core.setOutput(OUTPUT_NAMES.CHANGELOG_UPDATED, OUTPUT_VALUES.CHANGELOG_UPDATED_TRUE);
         core.setOutput(OUTPUT_NAMES.CHANGES_ADDED, changelogEntries.length.toString());
       } else {
-        core.setFailed('Failed to update changelog');
+        core.info('No changes needed - changelog is already up to date');
+        core.setOutput(OUTPUT_NAMES.CHANGELOG_UPDATED, OUTPUT_VALUES.CHANGELOG_UPDATED_FALSE);
+        core.setOutput(OUTPUT_NAMES.CHANGES_ADDED, OUTPUT_VALUES.CHANGES_ADDED_ZERO);
       }
     } else {
       core.info('No changelog entries to process');
@@ -234,28 +209,7 @@ async function run() {
   }
 }
 
-async function findChangelogComment(octokit, owner, repo, prNumber, trigger) {
-  try {
-    // Get all comments for the PR
-    const { data: comments } = await octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: prNumber
-    });
 
-    // Find the most recent comment with the changelog trigger
-    for (const comment of comments.reverse()) {
-      if (comment.body && comment.body.includes(trigger)) {
-        return comment.body;
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    core.error(`Failed to find changelog comment: ${error.message}`);
-    return null;
-  }
-}
 
 function parseChangelogComment(comment, trigger, pr, prNumber) {
   const lines = comment.split('\n');
@@ -481,23 +435,7 @@ async function commitChanges(changelogPath, entriesCount, prNumber) {
     
     // Get the current branch name from the PR
     const context = github.context;
-    let branchName;
-    
-    if (context.eventName === EVENT_TYPES.PULL_REQUEST) {
-      branchName = context.payload.pull_request.head.ref;
-    } else if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      // For comments, we need to get the PR details to find the branch
-      const { owner, repo } = context.repo;
-      
-      const octokit = github.getOctokit(core.getInput('github-token'));
-      const { data: pr } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: prNumber
-      });
-      
-      branchName = pr.head.ref;
-    }
+    const branchName = context.payload.pull_request.head.ref;
     
     // Checkout the PR branch if we're in detached HEAD
     try {
