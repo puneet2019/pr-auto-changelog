@@ -169,15 +169,15 @@ async function run() {
 
     let changelogEntries = [];
 
-    // Parse comments for changelog entries
-    if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      const comment = context.payload.comment.body;
-      const entry = parseChangelogComment(comment, commentTrigger, pr, prNumber);
+    // First, check for changelog comments in the PR
+    const changelogComment = await findChangelogComment(octokit, owner, repo, prNumber, commentTrigger);
+    if (changelogComment) {
+      const entry = parseChangelogComment(changelogComment, commentTrigger, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
       }
     } else if (autoCategorize) {
-      // Auto-categorize based on PR title and conventional commits
+      // Fallback to PR title if no comment found
       const entry = parseConventionalCommit(pr.title, pr, prNumber);
       if (entry) {
         changelogEntries.push(entry);
@@ -217,6 +217,29 @@ async function run() {
 
   } catch (error) {
     core.setFailed(error.message);
+  }
+}
+
+async function findChangelogComment(octokit, owner, repo, prNumber, trigger) {
+  try {
+    // Get all comments for the PR
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber
+    });
+
+    // Find the most recent comment with the changelog trigger
+    for (const comment of comments.reverse()) {
+      if (comment.body && comment.body.includes(trigger)) {
+        return comment.body;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    core.error(`Failed to find changelog comment: ${error.message}`);
+    return null;
   }
 }
 
