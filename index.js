@@ -5,8 +5,7 @@ const fs = require('fs');
 
 // Constants for event types
 const EVENT_TYPES = {
-  PULL_REQUEST: 'pull_request',
-  ISSUE_COMMENT: 'issue_comment'
+  PULL_REQUEST: 'pull_request'
 };
 
 // Constants for checkbox states
@@ -109,27 +108,13 @@ async function run() {
     core.info(`Event name: ${context.eventName}`);
 
     // Only run on pull request events
-    if (context.eventName !== EVENT_TYPES.PULL_REQUEST && context.eventName !== EVENT_TYPES.ISSUE_COMMENT) {
-      core.info('Action only runs on pull request events or issue comments');
+    if (context.eventName !== EVENT_TYPES.PULL_REQUEST) {
+      core.info('Action only runs on pull request events');
       return;
     }
 
     const { owner, repo } = context.repo;
-    let prNumber;
-
-    // Get PR number based on event type
-    if (context.eventName === EVENT_TYPES.PULL_REQUEST) {
-      prNumber = context.payload.pull_request.number;
-    } else if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      prNumber = context.payload.issue.number;
-      const comment = context.payload.comment.body;
-      
-      if (!comment.includes(commentTrigger)) {
-        core.info('Comment does not contain changelog trigger');
-        return;
-      }
-      core.info('Comment contains trigger - proceeding with parsing');
-    }
+    const prNumber = context.payload.pull_request.number;
 
     // Get PR details
     const { data: pr } = await octokit.rest.pulls.get({
@@ -444,23 +429,7 @@ async function commitChanges(changelogPath, entriesCount, prNumber) {
     
     // Get the current branch name from the PR
     const context = github.context;
-    let branchName;
-    
-    if (context.eventName === EVENT_TYPES.PULL_REQUEST) {
-      branchName = context.payload.pull_request.head.ref;
-    } else if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      // For comments, we need to get the PR details to find the branch
-      const { owner, repo } = context.repo;
-      
-      const octokit = github.getOctokit(core.getInput('github-token'));
-      const { data: pr } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: prNumber
-      });
-      
-      branchName = pr.head.ref;
-    }
+    const branchName = context.payload.pull_request.head.ref;
     
     // Checkout the PR branch if we're in detached HEAD
     try {
