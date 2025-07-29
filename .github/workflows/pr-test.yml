@@ -44,6 +44,7 @@ jobs:
           echo "- **Changelog Updated:** ${{ steps.changelog.outputs.changelog-updated }}"
           echo "- **Changes Added:** ${{ steps.changelog.outputs.changes-added }}"
           echo "- **Event Type:** ${{ github.event_name }}"
+          echo "- **Event Action:** ${{ github.event.action }}"
           
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "- **PR Title:** ${{ github.event.pull_request.title }}"
@@ -52,6 +53,7 @@ jobs:
           elif [ "${{ github.event_name }}" = "issue_comment" ]; then
             echo "- **Comment:** ${{ github.event.comment.body }}"
             echo "- **PR Number:** #${{ github.event.issue.number }}"
+            echo "- **Comment Action:** ${{ github.event.action }}"
           fi
           
       - name: Show Updated Changelog
