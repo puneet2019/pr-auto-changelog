@@ -239,8 +239,10 @@ This PR updates documentation.
 
 **Dynamic behavior:**
 - ✅ **Checked** `[x] auto-generate changelog` → Entry is **added** to changelog and **auto-committed**
-- ❌ **Unchecked** `[ ] auto-generate changelog` → Entry is **skipped** (no removal)
+- ❌ **Unchecked** `[ ] auto-generate changelog` → **Auto-generated entries are removed** from changelog
 - **No checkbox** → Entry is **skipped** (default behavior)
+
+**Auto-generated commits are identifiable** with the `[AUTO-CHANGELOG]` prefix and can be safely removed when unchecked.
 
 This is useful for:
 - Documentation-only changes
