@@ -1,5 +1,7 @@
 name: 'PR Auto Changelog'
-description: 'Automatically update changelog based on PR comments and conventional commits'
+description: 'Automatically update changelog based on PR description and conventional commits'
+icon: git-pull-request
+color: blue
 inputs:
   github-token:
     description: 'GitHub token for API access'
