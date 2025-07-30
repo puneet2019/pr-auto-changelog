@@ -375,6 +375,11 @@ async function updateChangelog(changelogPath, entries) {
                                 unreleasedContent + 
                                 restContent;
 
+    // Check if content actually changed
+    if (changelogContent === newChangelogContent) {
+      return false; // No changes made
+    }
+
     // Write updated changelog
     fs.writeFileSync(changelogPath, newChangelogContent);
     
