@@ -443,23 +443,22 @@ async function commitChanges(changelogPath, entriesCount, prNumber) {
       await exec.exec('git', ['checkout', '-b', branchName]);
     }
     
+    // Check if there are any changes to commit
+    const { stdout: status } = await exec.getExecOutput('git', ['status', '--porcelain', changelogPath]);
+    
+    if (!status.trim()) {
+      core.info('No changes to commit - changelog is already up to date');
+      return;
+    }
+    
     // Add and commit changes
     await exec.exec('git', ['add', changelogPath]);
     
-    // Try to commit, but don't fail if there's nothing to commit
-    try {
-      const commitMessage = entriesCount > 0 
-        ? COMMIT_MESSAGES.UPDATE_TEMPLATE.replace('{count}', entriesCount).replace('{prNumber}', prNumber)
-        : COMMIT_MESSAGES.REMOVE_TEMPLATE.replace('{prNumber}', prNumber);
-      
-      await exec.exec('git', ['commit', '-m', commitMessage]);
-    } catch (error) {
-      if (error.message.includes('nothing to commit') || error.message.includes('no changes added to commit')) {
-        core.info('No changes to commit - changelog is already up to date');
-        return;
-      }
-      throw error;
-    }
+    const commitMessage = entriesCount > 0 
+      ? COMMIT_MESSAGES.UPDATE_TEMPLATE.replace('{count}', entriesCount).replace('{prNumber}', prNumber)
+      : COMMIT_MESSAGES.REMOVE_TEMPLATE.replace('{prNumber}', prNumber);
+    
+    await exec.exec('git', ['commit', '-m', commitMessage]);
     
     // Push changes
     await exec.exec('git', ['push', 'origin', branchName]);
