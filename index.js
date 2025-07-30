@@ -302,6 +302,31 @@ async function updateChangelog(changelogPath, entries) {
     let unreleasedContent = changelogContent.slice(unreleasedIndex, nextSectionIndex);
     const restContent = changelogContent.slice(nextSectionIndex);
 
+    // First, remove any existing entries for the PRs we're updating
+    entries.forEach(entry => {
+      const prNumber = entry.prNumber;
+      const lines = unreleasedContent.split('\n');
+      let updatedLines = [];
+      let entryRemoved = false;
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith(CHANGELOG_STRUCTURE.ENTRY_PREFIX)) {
+          const entryText = trimmedLine.replace(/^- /, '');
+          // Remove entries that contain this PR number
+          if (entryText.includes(`[#${prNumber}]`)) {
+            entryRemoved = true;
+            continue; // Skip this line (remove the entry)
+          }
+        }
+        updatedLines.push(line);
+      }
+      
+      if (entryRemoved) {
+        unreleasedContent = updatedLines.join('\n');
+      }
+    });
+
     // Add new entries to appropriate sections
     Object.keys(entriesBySection).forEach(sectionName => {
       let sectionIndex = unreleasedContent.indexOf(`### ${sectionName}`);
@@ -319,13 +344,7 @@ async function updateChangelog(changelogPath, entries) {
         sectionEndIndex = unreleasedContent.length;
       }
 
-      // Get existing entries in this section to check for duplicates
-      const sectionContent = unreleasedContent.slice(sectionIndex, sectionEndIndex);
-              const existingEntries = sectionContent.split('\n').filter(line => 
-          line.trim().startsWith(CHANGELOG_STRUCTURE.ENTRY_PREFIX) && line.includes('([#')
-        );
-
-      // Create new entries, checking for duplicates
+      // Create new entries for this section
       const sectionEntries = entriesBySection[sectionName];
       const newEntries = [];
       
@@ -333,28 +352,7 @@ async function updateChangelog(changelogPath, entries) {
         const scopeText = entry.scope ? `**${entry.scope}**: ` : '';
         const newEntryText = `${scopeText}${entry.description} ([#${entry.prNumber}](${entry.prUrl}))`;
         const newEntryLine = `${CHANGELOG_STRUCTURE.ENTRY_PREFIX}${newEntryText}`;
-        
-        // Check if this entry already exists (by PR number)
-        const existingEntryIndex = existingEntries.findIndex(existingLine => {
-          return existingLine.includes(`[#${entry.prNumber}](`);
-        });
-        
-        if (existingEntryIndex === -1) {
-          // New entry, add it
-          newEntries.push(newEntryLine);
-        } else {
-          // Entry exists, update it
-          const existingLine = existingEntries[existingEntryIndex];
-          const existingText = existingLine.replace(/^- /, '').replace(/ \(\[#\d+\]\([^)]+\)\)$/, '');
-          const newText = newEntryText.replace(/ \(\[#\d+\]\([^)]+\)\)$/, '');
-          
-          if (existingText !== newText) {
-            // Description changed, update the entry
-            // Replace the existing entry in the section content
-            const updatedSectionContent = sectionContent.replace(existingLine, newEntryLine);
-            unreleasedContent = unreleasedContent.replace(sectionContent, updatedSectionContent);
-          }
-        }
+        newEntries.push(newEntryLine);
       });
 
       if (newEntries.length > 0) {
