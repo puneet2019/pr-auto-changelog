@@ -5,8 +5,7 @@ const fs = require('fs');
 
 // Constants for event types
 const EVENT_TYPES = {
-  PULL_REQUEST: 'pull_request',
-  ISSUE_COMMENT: 'issue_comment'
+  PULL_REQUEST: 'pull_request'
 };
 
 // Constants for checkbox states
@@ -109,27 +108,13 @@ async function run() {
     core.info(`Event name: ${context.eventName}`);
 
     // Only run on pull request events
-    if (context.eventName !== EVENT_TYPES.PULL_REQUEST && context.eventName !== EVENT_TYPES.ISSUE_COMMENT) {
-      core.info('Action only runs on pull request events or issue comments');
+    if (context.eventName !== EVENT_TYPES.PULL_REQUEST) {
+      core.info('Action only runs on pull request events');
       return;
     }
 
     const { owner, repo } = context.repo;
-    let prNumber;
-
-    // Get PR number based on event type
-    if (context.eventName === EVENT_TYPES.PULL_REQUEST) {
-      prNumber = context.payload.pull_request.number;
-    } else if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      prNumber = context.payload.issue.number;
-      const comment = context.payload.comment.body;
-      
-      if (!comment.includes(commentTrigger)) {
-        core.info('Comment does not contain changelog trigger');
-        return;
-      }
-      core.info('Comment contains trigger - proceeding with parsing');
-    }
+    const prNumber = context.payload.pull_request.number;
 
     // Get PR details
     const { data: pr } = await octokit.rest.pulls.get({
@@ -317,6 +302,31 @@ async function updateChangelog(changelogPath, entries) {
     let unreleasedContent = changelogContent.slice(unreleasedIndex, nextSectionIndex);
     const restContent = changelogContent.slice(nextSectionIndex);
 
+    // First, remove any existing entries for the PRs we're updating
+    entries.forEach(entry => {
+      const prNumber = entry.prNumber;
+      const lines = unreleasedContent.split('\n');
+      let updatedLines = [];
+      let entryRemoved = false;
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith(CHANGELOG_STRUCTURE.ENTRY_PREFIX)) {
+          const entryText = trimmedLine.replace(/^- /, '');
+          // Remove entries that contain this PR number
+          if (entryText.includes(`[#${prNumber}]`)) {
+            entryRemoved = true;
+            continue; // Skip this line (remove the entry)
+          }
+        }
+        updatedLines.push(line);
+      }
+      
+      if (entryRemoved) {
+        unreleasedContent = updatedLines.join('\n');
+      }
+    });
+
     // Add new entries to appropriate sections
     Object.keys(entriesBySection).forEach(sectionName => {
       let sectionIndex = unreleasedContent.indexOf(`### ${sectionName}`);
@@ -334,13 +344,7 @@ async function updateChangelog(changelogPath, entries) {
         sectionEndIndex = unreleasedContent.length;
       }
 
-      // Get existing entries in this section to check for duplicates
-      const sectionContent = unreleasedContent.slice(sectionIndex, sectionEndIndex);
-              const existingEntries = sectionContent.split('\n').filter(line => 
-          line.trim().startsWith(CHANGELOG_STRUCTURE.ENTRY_PREFIX) && line.includes('([#')
-        );
-
-      // Create new entries, checking for duplicates
+      // Create new entries for this section
       const sectionEntries = entriesBySection[sectionName];
       const newEntries = [];
       
@@ -348,28 +352,7 @@ async function updateChangelog(changelogPath, entries) {
         const scopeText = entry.scope ? `**${entry.scope}**: ` : '';
         const newEntryText = `${scopeText}${entry.description} ([#${entry.prNumber}](${entry.prUrl}))`;
         const newEntryLine = `${CHANGELOG_STRUCTURE.ENTRY_PREFIX}${newEntryText}`;
-        
-        // Check if this entry already exists (by PR number)
-        const existingEntryIndex = existingEntries.findIndex(existingLine => {
-          return existingLine.includes(`[#${entry.prNumber}](`);
-        });
-        
-        if (existingEntryIndex === -1) {
-          // New entry, add it
-          newEntries.push(newEntryLine);
-        } else {
-          // Entry exists, update it
-          const existingLine = existingEntries[existingEntryIndex];
-          const existingText = existingLine.replace(/^- /, '').replace(/ \(\[#\d+\]\([^)]+\)\)$/, '');
-          const newText = newEntryText.replace(/ \(\[#\d+\]\([^)]+\)\)$/, '');
-          
-          if (existingText !== newText) {
-            // Description changed, update the entry
-            // Replace the existing entry in the section content
-            const updatedSectionContent = sectionContent.replace(existingLine, newEntryLine);
-            unreleasedContent = unreleasedContent.replace(sectionContent, updatedSectionContent);
-          }
-        }
+        newEntries.push(newEntryLine);
       });
 
       if (newEntries.length > 0) {
@@ -385,6 +368,11 @@ async function updateChangelog(changelogPath, entries) {
     const newChangelogContent = changelogContent.slice(0, unreleasedIndex) + 
                                 unreleasedContent + 
                                 restContent;
+
+    // Check if content actually changed
+    if (changelogContent === newChangelogContent) {
+      return false; // No changes made
+    }
 
     // Write updated changelog
     fs.writeFileSync(changelogPath, newChangelogContent);
@@ -444,23 +432,7 @@ async function commitChanges(changelogPath, entriesCount, prNumber) {
     
     // Get the current branch name from the PR
     const context = github.context;
-    let branchName;
-    
-    if (context.eventName === EVENT_TYPES.PULL_REQUEST) {
-      branchName = context.payload.pull_request.head.ref;
-    } else if (context.eventName === EVENT_TYPES.ISSUE_COMMENT) {
-      // For comments, we need to get the PR details to find the branch
-      const { owner, repo } = context.repo;
-      
-      const octokit = github.getOctokit(core.getInput('github-token'));
-      const { data: pr } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: prNumber
-      });
-      
-      branchName = pr.head.ref;
-    }
+    const branchName = context.payload.pull_request.head.ref;
     
     // Checkout the PR branch if we're in detached HEAD
     try {
@@ -471,23 +443,22 @@ async function commitChanges(changelogPath, entriesCount, prNumber) {
       await exec.exec('git', ['checkout', '-b', branchName]);
     }
     
+    // Check if there are any changes to commit
+    const { stdout: status } = await exec.getExecOutput('git', ['status', '--porcelain', changelogPath]);
+    
+    if (!status.trim()) {
+      core.info('No changes to commit - changelog is already up to date');
+      return;
+    }
+    
     // Add and commit changes
     await exec.exec('git', ['add', changelogPath]);
     
-    // Try to commit, but don't fail if there's nothing to commit
-    try {
-      const commitMessage = entriesCount > 0 
-        ? COMMIT_MESSAGES.UPDATE_TEMPLATE.replace('{count}', entriesCount).replace('{prNumber}', prNumber)
-        : COMMIT_MESSAGES.REMOVE_TEMPLATE.replace('{prNumber}', prNumber);
-      
-      await exec.exec('git', ['commit', '-m', commitMessage]);
-    } catch (error) {
-      if (error.message.includes('nothing to commit') || error.message.includes('no changes added to commit')) {
-        core.info('No changes to commit - changelog is already up to date');
-        return;
-      }
-      throw error;
-    }
+    const commitMessage = entriesCount > 0 
+      ? COMMIT_MESSAGES.UPDATE_TEMPLATE.replace('{count}', entriesCount).replace('{prNumber}', prNumber)
+      : COMMIT_MESSAGES.REMOVE_TEMPLATE.replace('{prNumber}', prNumber);
+    
+    await exec.exec('git', ['commit', '-m', commitMessage]);
     
     // Push changes
     await exec.exec('git', ['push', 'origin', branchName]);
