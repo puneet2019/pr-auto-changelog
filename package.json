@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/puneet2019/pr-auto-changelog#readme",
   "dependencies": {
-    "@actions/core": "^2.0.2",
+    "@actions/core": "^2.0.3",
     "@actions/exec": "^2.0.0",
     "@actions/github": "^6.0.1"
   },
