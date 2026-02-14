@@ -23,11 +23,25 @@ inputs:
     description: 'Skip processing for dependabot PRs'
     required: false
     default: 'true'
+  default-behavior:
+    description: '"auto" = auto-generate for all PRs (opt-out via skip), "opt-in" = legacy checkbox behavior'
+    required: false
+    default: 'auto'
+  preserve-edited:
+    description: 'Preserve entries that were auto-generated then manually edited'
+    required: false
+    default: 'true'
+  skip-labels:
+    description: 'Comma-separated PR labels that skip changelog (e.g. "skip-changelog,dependencies")'
+    required: false
+    default: ''
 outputs:
   changelog-updated:
     description: 'Whether the changelog was updated'
   changes-added:
     description: 'Number of changes added to changelog'
+  entry-state:
+    description: 'Detected state: NONE, AUTO_UNTOUCHED, AUTO_EDITED, MANUAL, SKIPPED'
 runs:
   using: 'node20'
   main: 'dist/index.js'

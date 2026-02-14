@@ -3,12 +3,14 @@ name: "PR Auto Changelog Integration Test"
 on:
   pull_request:
     types: [opened, synchronize, edited]
+  issue_comment:
+    types: [created]
 
 jobs:
   test-changelog:
     runs-on: ubuntu-latest
-    # Only run on PRs
-    if: github.event_name == 'pull_request'
+    # Run on PRs and PR comments
+    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
     permissions:
       contents: write
       pull-requests: read
@@ -35,6 +37,8 @@ jobs:
           changelog-path: 'CHANGELOG.md'
           auto-categorize: true
           comment-trigger: '/changelog:'
+          default-behavior: 'auto'
+          preserve-edited: 'true'
         
       - name: Display Results
         run: |
