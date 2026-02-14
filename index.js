@@ -805,7 +805,11 @@ async function commitChanges(changelogPath, entriesCount, prNumber) {
   }
 }
 
-run();
+// Only run when executed directly (not when required by tests)
+/* istanbul ignore next */
+if (require.main === module) {
+  run();
+}
 
 // Export functions for testing
 module.exports = {
