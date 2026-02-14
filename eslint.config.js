@@ -1,15 +1,11 @@
-// ESLint v9 flat config
-import js from '@eslint/js';
-import globals from 'globals';
+const js = require('@eslint/js');
+const globals = require('globals');
 
-export default [
-  // Ignore build outputs and the config file itself
-  { ignores: ['dist/**', 'eslint.config.js'] },
+module.exports = [
+  { ignores: ['dist/**'] },
 
-  // Base recommended rules for JS
   js.configs.recommended,
 
-  // Node/CommonJS project settings
   {
     files: ['**/*.js'],
     languageOptions: {
@@ -19,15 +15,8 @@ export default [
         ...globals.node,
       },
     },
-    linterOptions: {
-      reportUnusedDisableDirectives: true,
-    },
-    rules: {
-      // Keep minimal rules to avoid introducing new failures during the bump
-    },
   },
 
-  // Jest test files
   {
     files: ['**/*.test.js'],
     languageOptions: {
