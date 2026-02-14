@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 - update readme.md ([#30](https://github.com/puneet2019/pr-auto-changelog/pull/30))
+- migrate eslint config to flat config format ([#66](https://github.com/puneet2019/pr-auto-changelog/pull/66)) <!-- ac:3511dfe7:66 -->
 
 ### Documentation
 
